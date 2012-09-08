@@ -88,7 +88,11 @@ class TestJsonWeb(unittest.TestCase):
             
     def tearDown(self):
         decode._default_object_handlers.clear()            
-            
+        
+    def post(self, url, data):
+        return self.test_client.post(url, data=encode.dumper(data), 
+                                     content_type="application/json")
+    
     def test_view_gets_decoded_instance(self):
         person = self.person_cls("Bob", "Smith")
         
@@ -99,17 +103,44 @@ class TestJsonWeb(unittest.TestCase):
             
         self.assertEqual(res.status_code, 200)
             
-    def test_validation_error_is_raised_when_type_not_expected(self):
-        
-        with self.test_client as c:
-            res = c.post("/person", data="[1,2,3]", content_type="application/json")
+    def test_validation_error_response_when_type_not_expected(self):
+        """
+        Test that a validation error response is returned if request.json
+        returns an object that is not an instance of the class supplied to
+        JsonWeb.expects.
+        """
+
+        res = self.post("/person", [1,2,3])
             
         self.assertEqual(res.status_code, 400)
         self.assertIn("Expected Person got list instead.", res.data)
         
-
+    def test_validation_error_response(self):
+        """
+        Test that a validation error response is returned when
+        object validation fails.
+        """
         
-                            
+        v = schema.validators
+        class PersonSchema(schema.ObjectSchema):
+            first_name = v.String()
+            last_name = v.String()
+            
+        schema.bind_schema("Person", PersonSchema)
+        
+        res = self.post("/person", self.person_cls(1, "smith"))       
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("Expected str got int instead.", res.data)
+        
+    def test_jsonweb_error_response(self):
+        
+        res = self.post("/person", {"__type__": "Foo", "value": 42})
+        
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("Cannot decode object Foo. No such object.", res.data)
+
+
+
 def suite():
     s = unittest.TestSuite()
     s.addTest(unittest.makeSuite(TestJsonWebRequest))
@@ -118,4 +149,3 @@ def suite():
 
 if __name__ == "__main__":
     unittest.main(defaultTest="suite")
-        
