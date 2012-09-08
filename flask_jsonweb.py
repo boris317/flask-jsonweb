@@ -2,15 +2,31 @@ from functools import wraps
 from jsonweb import encode, decode, schema
 from jsonweb.exceptions import JsonWebError
 
+from werkzeug.exceptions import default_exceptions
+from werkzeug.exceptions import HTTPException
+
 from flask.wrappers import Request, cached_property
-from flask.exceptions import JSONHTTPException, BadRequest
+from flask.exceptions import JSONBadRequest
 from flask import Response, request
 
 def jsonweb_response(obj):
     return Response(encode.dumper(obj),
                     mimetype="application/json")
 
-class JsonWebBadRequest(JSONHTTPException, BadRequest):
+def make_json_error(e):
+    
+    error = {"message": str(e)}
+    
+    if isinstance(e, JsonWebBadRequest):
+        error.update(e.extra)
+
+    response = jsonweb_response(error)
+    response.status_code = (e.code
+                            if isinstance(e, HTTPException)
+                            else 500)
+    return response
+
+class JsonWebBadRequest(JSONBadRequest):
 
     description = (
         'The browser (or proxy) sent a request that this server could not '
@@ -20,15 +36,6 @@ class JsonWebBadRequest(JSONHTTPException, BadRequest):
     def __init__(self, description, **extra):
         super(JsonWebBadRequest, self).__init__(description)
         self.extra = extra
-        
-    def get_body(self, environ):
-        """
-        Overrides :meth:`flask.exceptions.JSONHTTPException.get_body`
-        """ 
-        error = dict(description=self.get_description(environ))
-        error.update(self.extra)
-        return encode.dumper(error) 
-
 
 class JsonWebRequest(Request):
     """
@@ -60,6 +67,9 @@ class JsonWeb(object):
 
     def init_app(self, app):
         app.request_class = JsonWebRequest
+        # Modified from http://flask.pocoo.org/snippets/83/
+        for code in default_exceptions.iterkeys():
+            app.error_handler_spec[None][code] = make_json_error
         
     def json_view(self, expects=None):
         def dec(func):

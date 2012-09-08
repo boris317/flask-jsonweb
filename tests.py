@@ -47,9 +47,9 @@ class TestJsonWebRequest(unittest.TestCase):
         with self.assertRaises(JsonWebBadRequest) as c:
             person = request.json
             
-        error = c.exception.get_body(request.environ)
-        self.assertIn("Error validating object", error)
-        self.assertIn("Expected str got int", error)
+        error = c.exception
+        self.assertIn("Error validating object", str(error))
+        self.assertEqual("Expected str got int instead.", str(error.extra["fields"]["first_name"]))
         
     def test_json_decode_error(self):
         
