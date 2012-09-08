@@ -4,7 +4,11 @@ from jsonweb.exceptions import JsonWebError
 
 from flask.wrappers import Request, cached_property
 from flask.exceptions import JSONHTTPException, BadRequest
-from flask import request
+from flask import Response, request
+
+def jsonweb_response(obj):
+    return Response(encode.dumper(obj),
+                    mimetype="application/json")
 
 class JsonWebBadRequest(JSONHTTPException, BadRequest):
 
@@ -57,12 +61,12 @@ class JsonWeb(object):
     def init_app(self, app):
         app.request_class = JsonWebRequest
         
-    def expects(self, cls):
+    def json_view(self, expects=None):
         def dec(func):
             @wraps(func)
             def wrapper(*args, **kw):
-                with decode.ensure_type(cls):
-                    return func(*args, **kw)
+                with decode.ensure_type(expects):
+                    return jsonweb_response(func(*args, **kw))
             return wrapper
         return dec
 

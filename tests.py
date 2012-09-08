@@ -79,10 +79,15 @@ class TestJsonWeb(unittest.TestCase):
         jw = JsonWeb(app)
         
         @app.route("/person", methods=["POST"])
-        @jw.expects(Person)
+        @jw.json_view(expects=Person)
         def test_view():
             request.json
             return "ok"
+        
+        @app.route("/person", methods=["GET"])
+        @jw.json_view()
+        def get_person():
+            return Person("Bob", "Smith")
             
         self.test_client = app.test_client()
             
@@ -138,7 +143,14 @@ class TestJsonWeb(unittest.TestCase):
         
         self.assertEqual(res.status_code, 400)
         self.assertIn("Cannot decode object Foo. No such object.", res.data)
-
+        
+    def test_decorated_view_makes_json_response(self):
+        res = self.test_client.get("/person")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.content_type, "application/json")
+        self.assertIn('"__type__": "Person"', res.data)
+        self.assertIn('"first_name": "Bob"', res.data)
+        self.assertIn('"last_name": "Smith"', res.data)        
 
 
 def suite():
