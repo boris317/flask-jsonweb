@@ -29,11 +29,6 @@ def make_json_error(e):
 
 
 class JsonWebBadRequest(JSONBadRequest):
-
-    description = (
-        'The browser (or proxy) sent a request that this server could not '
-        'understand.'
-    )
     
     def __init__(self, description=None, **extra):
         super(JsonWebBadRequest, self).__init__(description)
