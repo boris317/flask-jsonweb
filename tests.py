@@ -74,7 +74,7 @@ class TestJsonWeb(unittest.TestCase):
         self.person_cls = Person        
         
         app = Flask("test")
-        app.testing = True
+        #app.testing = True
         
         jw = JsonWeb(app)
         
@@ -88,6 +88,11 @@ class TestJsonWeb(unittest.TestCase):
         @jw.json_view()
         def get_person():
             return Person("Bob", "Smith")
+
+        @app.route("/error", methods=["GET"])
+        @jw.json_view()
+        def error_view():
+            raise TypeError("Boom!")
             
         self.test_client = app.test_client()
             
@@ -133,7 +138,7 @@ class TestJsonWeb(unittest.TestCase):
             
         schema.bind_schema("Person", PersonSchema)
         
-        res = self.post("/person", self.person_cls(1, "smith"))       
+        res = self.post("/person", self.person_cls(1, "smith"))
         self.assertEqual(res.status_code, 400)
         self.assertIn("Expected str got int instead.", res.data)
         
@@ -144,13 +149,26 @@ class TestJsonWeb(unittest.TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertIn("Cannot decode object Foo. No such object.", res.data)
         
+    def test_non_jsonweb_error_response(self):
+        res = self.test_client.get("/error")
+        self.assertEqual(res.status_code, 500)
+        self.assertIn("Unhandled Exception.", res.data)
+        
+    def test_wrong_content_type_returns_error(self):
+        res = self.test_client.post("/person", 
+                                    data=encode.dumper(self.person_cls(1, "smith")))
+        
+        self.assertEqual(res.status_code, 400)
+        
     def test_decorated_view_makes_json_response(self):
         res = self.test_client.get("/person")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.content_type, "application/json")
         self.assertIn('"__type__": "Person"', res.data)
         self.assertIn('"first_name": "Bob"', res.data)
-        self.assertIn('"last_name": "Smith"', res.data)        
+        self.assertIn('"last_name": "Smith"', res.data)
+        
+        
 
 
 def suite():

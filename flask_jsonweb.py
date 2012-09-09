@@ -7,24 +7,26 @@ from werkzeug.exceptions import HTTPException
 
 from flask.wrappers import Request, cached_property
 from flask.exceptions import JSONBadRequest
-from flask import Response, request
+from flask import Response, request, current_app
 
-def jsonweb_response(obj):
-    return Response(encode.dumper(obj),
-                    mimetype="application/json")
+
+def jsonweb_response(obj, status_code=200, headers=None):
+    return Response(encode.dumper(obj), status_code,
+                    headers=headers, mimetype="application/json")
+
+
+def _error_response(message, status_code, **extra):
+    extra["message"] = message
+    return jsonweb_response(extra, status_code)
+
 
 def make_json_error(e):
-    
-    error = {"message": str(e)}
-    
+    if not isinstance(e, HTTPException):
+        return _error_response("Unhandled Exception.", 500)        
     if isinstance(e, JsonWebBadRequest):
-        error.update(e.extra)
+        return _error_response(str(e), e.code, **e.extra)
+    return _error_response(str(e), e.code)
 
-    response = jsonweb_response(error)
-    response.status_code = (e.code
-                            if isinstance(e, HTTPException)
-                            else 500)
-    return response
 
 class JsonWebBadRequest(JSONBadRequest):
 
@@ -33,9 +35,10 @@ class JsonWebBadRequest(JSONBadRequest):
         'understand.'
     )
     
-    def __init__(self, description, **extra):
+    def __init__(self, description=None, **extra):
         super(JsonWebBadRequest, self).__init__(description)
         self.extra = extra
+
 
 class JsonWebRequest(Request):
     """
@@ -44,14 +47,16 @@ class JsonWebRequest(Request):
     """
     @cached_property
     def json(self):
-        if self.mimetype == 'application/json':
-            request_charset = self.mimetype_params.get('charset')
-            try:
-                return decode.loader(self.data, encoding=request_charset)
-            except schema.ValidationError, e:
-                return self.on_json_validation_error(e)            
-            except JsonWebError, e:
-                return self.on_json_loading_failed(e)
+        if self.mimetype != 'application/json':
+            # Should we be more specific here?
+            raise JsonWebBadRequest
+        request_charset = self.mimetype_params.get('charset')
+        try:
+            return decode.loader(self.data, encoding=request_charset)
+        except schema.ValidationError, e:
+            return self.on_json_validation_error(e)            
+        except JsonWebError, e:
+            return self.on_json_loading_failed(e)
             
     def on_json_loading_failed(self, e):
         raise JsonWebBadRequest(e.message)
