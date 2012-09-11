@@ -5,8 +5,7 @@ from jsonweb.exceptions import JsonWebError
 from werkzeug.exceptions import default_exceptions
 from werkzeug.exceptions import HTTPException
 
-from flask.wrappers import Request, cached_property
-from flask.exceptions import JSONBadRequest
+from flask.wrappers import JSONBadRequest, Request, cached_property
 from flask import Response, request, current_app
 
 
