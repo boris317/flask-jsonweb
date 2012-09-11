@@ -21,6 +21,9 @@ setup(name='Flask-JsonWeb',
           "flask",
           "jsonweb==0.6.1"
       ],
+      dependency_links=[
+          "git+http://github.com/boris317/JsonWeb@0.6.1#egg=JsonWeb-0.6.1"      
+      ],
       entry_points="""
       # -*- Entry points: -*-
       """,
