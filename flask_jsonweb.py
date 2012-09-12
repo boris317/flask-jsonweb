@@ -1,5 +1,8 @@
 from functools import wraps
-from jsonweb import encode, decode, schema
+from jsonweb import (
+    encode, decode, schema, loader, dumper, 
+    from_object, to_object
+)
 from jsonweb.exceptions import JsonWebError
 
 from werkzeug.exceptions import default_exceptions
@@ -9,14 +12,14 @@ from flask.wrappers import JSONBadRequest, Request, cached_property
 from flask import Response, request, current_app
 
 
-def jsonweb_response(obj, status_code=200, headers=None):
-    return Response(encode.dumper(obj), status_code,
-                    headers=headers, mimetype="application/json")
-
-
 def _error_response(message, status_code, **extra):
     extra["message"] = message
     return jsonweb_response(extra, status_code)
+
+
+def jsonweb_response(obj, status_code=200, headers=None):
+    return Response(encode.dumper(obj), status_code,
+                    headers=headers, mimetype="application/json")
 
 
 def make_json_error(e):
@@ -25,6 +28,16 @@ def make_json_error(e):
     if isinstance(e, JsonWebBadRequest):
         return _error_response(str(e), e.code, **e.extra)
     return _error_response(str(e), e.code)
+
+
+def json_view(expects=None):
+    def dec(func):
+        @wraps(func)
+        def wrapper(*args, **kw):
+            with decode.ensure_type(expects):
+                return jsonweb_response(func(*args, **kw))
+        return wrapper
+    return dec
 
 
 class JsonWebBadRequest(JSONBadRequest):
@@ -69,15 +82,7 @@ class JsonWeb(object):
         # Modified from http://flask.pocoo.org/snippets/83/
         for code in default_exceptions.iterkeys():
             app.error_handler_spec[None][code] = make_json_error
-        
-    def json_view(self, expects=None):
-        def dec(func):
-            @wraps(func)
-            def wrapper(*args, **kw):
-                with decode.ensure_type(expects):
-                    return jsonweb_response(func(*args, **kw))
-            return wrapper
-        return dec
+
 
                 
 
