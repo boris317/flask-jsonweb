@@ -3,7 +3,7 @@ import unittest
 from werkzeug.test import EnvironBuilder
 from flask import Flask, request
 from flask.ext.jsonweb import JsonWeb, JsonWebBadRequest, \
-     JsonWebRequest, encode, decode, schema
+     JsonWebRequest, json_view, encode, decode, schema
 
 
 def get_request(obj):
@@ -76,21 +76,21 @@ class TestJsonWeb(unittest.TestCase):
         app = Flask("test")
         #app.testing = True
         
-        jw = JsonWeb(app)
+        JsonWeb(app)
         
         @app.route("/person", methods=["POST"])
-        @jw.json_view(expects=Person)
+        @json_view(expects=Person)
         def test_view():
             request.json
             return "ok"
         
         @app.route("/person", methods=["GET"])
-        @jw.json_view()
+        @json_view()
         def get_person():
             return Person("Bob", "Smith")
 
         @app.route("/error", methods=["GET"])
-        @jw.json_view()
+        @json_view()
         def error_view():
             raise TypeError("Boom!")
             
